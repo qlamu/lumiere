@@ -21,9 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Resources\icon.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <EmbeddedResource Include="Resources\icon.ico" />
   </ItemGroup>
 
 </Project>

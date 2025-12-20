@@ -1,5 +1,4 @@
 using System.Drawing;
-using System.IO;
 using System.Windows;
 using Lumiere.Services;
 using Lumiere.ViewModels;
@@ -98,10 +97,12 @@ public partial class App : Application
 
     private static Icon LoadIcon()
     {
-        var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "icon.ico");
-        if (File.Exists(iconPath))
+        // Load from embedded resource
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+        using var stream = assembly.GetManifestResourceStream("Lumiere.Resources.icon.ico");
+        if (stream != null)
         {
-            return new Icon(iconPath);
+            return new Icon(stream);
         }
 
         // Fallback: create a simple icon programmatically

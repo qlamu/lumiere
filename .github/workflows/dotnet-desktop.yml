@@ -30,7 +30,7 @@ jobs:
         run: dotnet build src/Lumiere/Lumiere.csproj -c Release --no-restore
 
       - name: Publish
-        run: dotnet publish src/Lumiere/Lumiere.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+        run: dotnet publish src/Lumiere/Lumiere.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
