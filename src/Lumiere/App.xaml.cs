@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows;
 using Lumiere.Services;
 using Lumiere.ViewModels;
@@ -52,6 +53,19 @@ public partial class App : Application
 
         // Initialize hotkeys
         _hotkeyService.Initialize(_viewModel);
+
+        // Reduce memory footprint after startup
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        TrimWorkingSet();
+    }
+
+    [DllImport("kernel32.dll")]
+    private static extern bool SetProcessWorkingSetSize(IntPtr process, IntPtr minSize, IntPtr maxSize);
+
+    private static void TrimWorkingSet()
+    {
+        SetProcessWorkingSetSize(System.Diagnostics.Process.GetCurrentProcess().Handle, (IntPtr)(-1), (IntPtr)(-1));
     }
 
     private void OnTrayIconClick(object? sender, EventArgs e)

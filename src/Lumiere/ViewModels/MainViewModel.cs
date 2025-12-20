@@ -1,3 +1,4 @@
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Lumiere.Models;
@@ -13,12 +14,18 @@ public partial class MainViewModel : ObservableObject
     private readonly HotkeyService _hotkeyService;
 
     private BrightnessPopup? _popup;
+    private readonly DispatcherTimer _brightnessThrottle;
+    private bool _monitorsInitialized;
 
     public MainViewModel(MonitorService monitorService, SettingsService settingsService, HotkeyService hotkeyService)
     {
         _monitorService = monitorService;
         _settingsService = settingsService;
         _hotkeyService = hotkeyService;
+
+        // Throttle brightness changes to avoid DDC/CI bottleneck
+        _brightnessThrottle = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+        _brightnessThrottle.Tick += ApplyPendingBrightness;
     }
 
     [RelayCommand]
@@ -39,20 +46,43 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowSettings()
     {
-        var settingsWindow = new SettingsWindow();
+        var settingsWindow = new SettingsWindow(_settingsService);
         settingsWindow.ShowDialog();
     }
 
     public void AdjustBrightness(int delta)
     {
-        _monitorService.RefreshMonitors();
+        // Initialize monitors once
+        if (!_monitorsInitialized)
+        {
+            _monitorService.RefreshMonitors();
+            _monitorsInitialized = true;
+        }
+
+        // Update target brightness immediately for responsive UI
         foreach (var monitor in _monitorService.Monitors.Where(m => m.SupportsDdcCi))
         {
             var newBrightness = Math.Clamp(
                 monitor.CurrentBrightness + delta,
                 monitor.MinBrightness,
                 monitor.MaxBrightness);
-            _monitorService.SetBrightness(monitor, newBrightness);
+            monitor.CurrentBrightness = newBrightness;
+            _monitorService.NotifyBrightnessChanged(monitor, newBrightness);
+        }
+
+        // Throttle actual DDC/CI calls
+        _brightnessThrottle.Stop();
+        _brightnessThrottle.Start();
+    }
+
+    private void ApplyPendingBrightness(object? sender, EventArgs e)
+    {
+        _brightnessThrottle.Stop();
+
+        // Apply current brightness values to hardware (no notification, already done)
+        foreach (var monitor in _monitorService.Monitors.Where(m => m.SupportsDdcCi))
+        {
+            _monitorService.SetBrightness(monitor, monitor.CurrentBrightness, notify: false);
         }
     }
 

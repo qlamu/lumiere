@@ -14,6 +14,11 @@ public class MonitorService : IDisposable
 
     public event Action<DisplayMonitor, int>? BrightnessChanged;
 
+    public void NotifyBrightnessChanged(DisplayMonitor monitor, int brightness)
+    {
+        BrightnessChanged?.Invoke(monitor, brightness);
+    }
+
     public void RefreshMonitors()
     {
         CleanupMonitors();
@@ -105,7 +110,7 @@ public class MonitorService : IDisposable
         }
     }
 
-    public bool SetBrightness(DisplayMonitor monitor, int brightness)
+    public bool SetBrightness(DisplayMonitor monitor, int brightness, bool notify = true)
     {
         if (!monitor.SupportsDdcCi || monitor.PhysicalMonitorHandle == IntPtr.Zero)
             return false;
@@ -115,7 +120,8 @@ public class MonitorService : IDisposable
         if (DxvaInterop.SetMonitorBrightness(monitor.PhysicalMonitorHandle, (uint)brightness))
         {
             monitor.CurrentBrightness = brightness;
-            BrightnessChanged?.Invoke(monitor, brightness);
+            if (notify)
+                BrightnessChanged?.Invoke(monitor, brightness);
             return true;
         }
 

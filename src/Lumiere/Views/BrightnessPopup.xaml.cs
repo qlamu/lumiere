@@ -27,11 +27,19 @@ public partial class BrightnessPopup : Window
     [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out POINT lpPoint);
 
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS margins);
+
+    private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+    private const uint SWP_NOMOVE = 0x0002;
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_SHOWWINDOW = 0x0040;
 
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
@@ -80,7 +88,7 @@ public partial class BrightnessPopup : Window
 
     private void OnBrightnessChanged(DisplayMonitor monitor, int brightness)
     {
-        Dispatcher.Invoke(() =>
+        Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
         {
             if (_sliderUpdaters.TryGetValue(monitor.DeviceName, out var updater))
             {
@@ -121,6 +129,14 @@ public partial class BrightnessPopup : Window
         PositionNearTray();
         AnimateOpen();
         _autoCloseTimer.Start();
+
+        // Force window to be topmost (above taskbar)
+        var hwnd = new WindowInteropHelper(this).Handle;
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+
+        // Activate window so Deactivated event fires properly
+        Activate();
+        Focus();
     }
 
     private void ResetTimer()
@@ -131,21 +147,12 @@ public partial class BrightnessPopup : Window
 
     private void AnimateOpen()
     {
-        // Animate the Border opacity instead of Window (can't with Mica)
-        MainBorder.Opacity = 0;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var duration = TimeSpan.FromMilliseconds(250);
 
-        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150))
-        {
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-        };
-
-        var slideUp = new DoubleAnimation(10, 0, TimeSpan.FromMilliseconds(150))
-        {
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-        };
-
-        MainBorder.BeginAnimation(OpacityProperty, fadeIn);
-        SlideTransform.BeginAnimation(TranslateTransform.YProperty, slideUp);
+        // Animate window position (whole window slides up)
+        var slideUp = new DoubleAnimation(Top + 12, Top, duration) { EasingFunction = ease };
+        BeginAnimation(TopProperty, slideUp);
     }
 
     private void AnimateClose()
@@ -154,13 +161,13 @@ public partial class BrightnessPopup : Window
         _isClosing = true;
         _autoCloseTimer.Stop();
 
-        var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(100));
-        var slideDown = new DoubleAnimation(0, 10, TimeSpan.FromMilliseconds(100));
+        var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+        var duration = TimeSpan.FromMilliseconds(150);
 
-        fadeOut.Completed += (s, e) => Close();
+        var slideDown = new DoubleAnimation(Top, Top + 8, duration) { EasingFunction = ease };
+        slideDown.Completed += (s, e) => Close();
 
-        MainBorder.BeginAnimation(OpacityProperty, fadeOut);
-        SlideTransform.BeginAnimation(TranslateTransform.YProperty, slideDown);
+        BeginAnimation(TopProperty, slideDown);
     }
 
     private void CreateControls()
@@ -281,28 +288,25 @@ public partial class BrightnessPopup : Window
 
         void UpdateVisuals()
         {
-            container.Dispatcher.Invoke(() =>
+            var width = container.ActualWidth;
+            if (width <= 0) return;
+
+            var ratio = (value - min) / (max - min);
+            var fillWidth = ratio * width;
+            var thumbX = ratio * (width - 16);
+
+            trackFill.Width = Math.Max(0, fillWidth);
+            thumb.Margin = new Thickness(thumbX, 0, 0, 0);
+            thumbInner.Margin = new Thickness(thumbX + 5, 0, 0, 0);
+
+            if (valueLabel == null)
             {
-                var width = container.ActualWidth;
-                if (width <= 0) return;
-
-                var ratio = (value - min) / (max - min);
-                var fillWidth = ratio * width;
-                var thumbX = ratio * (width - 16);
-
-                trackFill.Width = Math.Max(0, fillWidth);
-                thumb.Margin = new Thickness(thumbX, 0, 0, 0);
-                thumbInner.Margin = new Thickness(thumbX + 5, 0, 0, 0);
-
-                if (valueLabel == null)
-                {
-                    var parent = container.Parent as Grid;
-                    if (parent != null && parent.Children.Count > 1)
-                        valueLabel = parent.Children[1] as TextBlock;
-                }
-                if (valueLabel != null)
-                    valueLabel.Text = $"{(int)value}%";
-            });
+                var parent = container.Parent as Grid;
+                if (parent != null && parent.Children.Count > 1)
+                    valueLabel = parent.Children[1] as TextBlock;
+            }
+            if (valueLabel != null)
+                valueLabel.Text = $"{(int)value}%";
         }
 
         container.SizeChanged += (s, e) => UpdateVisuals();
@@ -364,14 +368,20 @@ public partial class BrightnessPopup : Window
 
         var screen = Forms.Screen.PrimaryScreen ?? Forms.Screen.AllScreens[0];
         var workArea = screen.WorkingArea;
+        var bounds = screen.Bounds;
 
         double w = ActualWidth * dpi;
         double h = ActualHeight * dpi;
-        double margin = 12 * dpi;
+        double marginX = 12 * dpi;
 
-        // Position: bottom-right corner with consistent margins
-        double left = workArea.Right - w - margin;
-        double top = workArea.Bottom - h - margin;
+        // Detect auto-hide taskbar (work area equals screen bounds)
+        // Add taskbar height (~48px) + margin (12px) when auto-hide
+        bool isAutoHideTaskbar = workArea.Bottom == bounds.Bottom;
+        double marginY = isAutoHideTaskbar ? 60 * dpi : 12 * dpi;
+
+        // Position: bottom-right corner with margins
+        double left = workArea.Right - w - marginX;
+        double top = workArea.Bottom - h - marginY;
 
         Left = left / dpi;
         Top = top / dpi;

@@ -14,6 +14,10 @@
     <!-- Only include English resources -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 
+    <!-- Memory optimization -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <TieredCompilation>true</TieredCompilation>
   </PropertyGroup>
 
   <ItemGroup>

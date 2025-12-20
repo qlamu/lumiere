@@ -19,11 +19,7 @@
     </WindowChrome.WindowChrome>
 
     <Border x:Name="MainBorder"
-            Padding="16,14,16,10"
-            RenderTransformOrigin="0.5,1">
-        <Border.RenderTransform>
-            <TranslateTransform x:Name="SlideTransform" Y="10"/>
-        </Border.RenderTransform>
+            Padding="16,14,16,10">
         <StackPanel x:Name="MonitorPanel" />
     </Border>
 </Window>
