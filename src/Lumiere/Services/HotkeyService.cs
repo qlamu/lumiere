@@ -17,70 +17,6 @@ public class HotkeyService : IDisposable
     private SettingsService? _settingsService;
     private bool _disposed;
 
-    private static readonly Dictionary<string, uint> ModifierMap = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["Ctrl"] = HotkeyModifiers.Control,
-        ["Alt"] = HotkeyModifiers.Alt,
-        ["Shift"] = HotkeyModifiers.Shift,
-        ["Win"] = HotkeyModifiers.Win
-    };
-
-    private static readonly Dictionary<string, int> KeyMap = new(StringComparer.OrdinalIgnoreCase)
-    {
-        // Arrow keys
-        ["Up"] = VirtualKeys.Up,
-        ["Down"] = VirtualKeys.Down,
-        ["Left"] = VirtualKeys.Left,
-        ["Right"] = VirtualKeys.Right,
-
-        // Letters
-        ["A"] = VirtualKeys.A, ["B"] = VirtualKeys.B, ["C"] = VirtualKeys.C, ["D"] = VirtualKeys.D,
-        ["E"] = VirtualKeys.E, ["F"] = VirtualKeys.F, ["G"] = VirtualKeys.G, ["H"] = VirtualKeys.H,
-        ["I"] = VirtualKeys.I, ["J"] = VirtualKeys.J, ["K"] = VirtualKeys.K, ["L"] = VirtualKeys.L,
-        ["M"] = VirtualKeys.M, ["N"] = VirtualKeys.N, ["O"] = VirtualKeys.O, ["P"] = VirtualKeys.P,
-        ["Q"] = VirtualKeys.Q, ["R"] = VirtualKeys.R, ["S"] = VirtualKeys.S, ["T"] = VirtualKeys.T,
-        ["U"] = VirtualKeys.U, ["V"] = VirtualKeys.V, ["W"] = VirtualKeys.W, ["X"] = VirtualKeys.X,
-        ["Y"] = VirtualKeys.Y, ["Z"] = VirtualKeys.Z,
-
-        // Numbers
-        ["0"] = VirtualKeys.D0, ["1"] = VirtualKeys.D1, ["2"] = VirtualKeys.D2, ["3"] = VirtualKeys.D3,
-        ["4"] = VirtualKeys.D4, ["5"] = VirtualKeys.D5, ["6"] = VirtualKeys.D6, ["7"] = VirtualKeys.D7,
-        ["8"] = VirtualKeys.D8, ["9"] = VirtualKeys.D9,
-
-        // Function keys
-        ["F1"] = VirtualKeys.F1, ["F2"] = VirtualKeys.F2, ["F3"] = VirtualKeys.F3, ["F4"] = VirtualKeys.F4,
-        ["F5"] = VirtualKeys.F5, ["F6"] = VirtualKeys.F6, ["F7"] = VirtualKeys.F7, ["F8"] = VirtualKeys.F8,
-        ["F9"] = VirtualKeys.F9, ["F10"] = VirtualKeys.F10, ["F11"] = VirtualKeys.F11, ["F12"] = VirtualKeys.F12,
-
-        // Special keys
-        ["Space"] = VirtualKeys.Space,
-        ["Tab"] = VirtualKeys.Tab,
-        ["Enter"] = VirtualKeys.Enter,
-        ["Backspace"] = VirtualKeys.Back,
-        ["Delete"] = VirtualKeys.Delete,
-        ["Insert"] = VirtualKeys.Insert,
-        ["Home"] = VirtualKeys.Home,
-        ["End"] = VirtualKeys.End,
-        ["PageUp"] = VirtualKeys.PageUp,
-        ["PageDown"] = VirtualKeys.PageDown,
-
-        // Numpad
-        ["NumPad0"] = VirtualKeys.NumPad0, ["NumPad1"] = VirtualKeys.NumPad1, ["NumPad2"] = VirtualKeys.NumPad2,
-        ["NumPad3"] = VirtualKeys.NumPad3, ["NumPad4"] = VirtualKeys.NumPad4, ["NumPad5"] = VirtualKeys.NumPad5,
-        ["NumPad6"] = VirtualKeys.NumPad6, ["NumPad7"] = VirtualKeys.NumPad7, ["NumPad8"] = VirtualKeys.NumPad8,
-        ["NumPad9"] = VirtualKeys.NumPad9,
-        ["NumPad+"] = VirtualKeys.NumPadAdd,
-        ["NumPad-"] = VirtualKeys.NumPadSubtract,
-        ["NumPad*"] = VirtualKeys.NumPadMultiply,
-        ["NumPad/"] = VirtualKeys.NumPadDivide,
-
-        // OEM keys
-        ["+"] = VirtualKeys.OemPlus,
-        ["-"] = VirtualKeys.OemMinus,
-        [","] = VirtualKeys.OemComma,
-        ["."] = VirtualKeys.OemPeriod
-    };
-
     public void Initialize(MainViewModel viewModel, SettingsService settingsService)
     {
         _viewModel = viewModel;
@@ -141,10 +77,14 @@ public class HotkeyService : IDisposable
 
         foreach (var part in parts)
         {
-            if (ModifierMap.TryGetValue(part, out var modifier))
+            result |= part.ToUpperInvariant() switch
             {
-                result |= modifier;
-            }
+                "CTRL" => HotkeyModifiers.Control,
+                "ALT" => HotkeyModifiers.Alt,
+                "SHIFT" => HotkeyModifiers.Shift,
+                "WIN" => HotkeyModifiers.Win,
+                _ => 0
+            };
         }
 
         return result;
@@ -154,7 +94,63 @@ public class HotkeyService : IDisposable
     {
         if (string.IsNullOrEmpty(keyString)) return 0;
 
-        return KeyMap.TryGetValue(keyString.Trim(), out var key) ? key : 0;
+        return keyString.Trim().ToUpperInvariant() switch
+        {
+            // Arrow keys
+            "UP" => VirtualKeys.Up,
+            "DOWN" => VirtualKeys.Down,
+            "LEFT" => VirtualKeys.Left,
+            "RIGHT" => VirtualKeys.Right,
+
+            // Letters
+            "A" => VirtualKeys.A, "B" => VirtualKeys.B, "C" => VirtualKeys.C, "D" => VirtualKeys.D,
+            "E" => VirtualKeys.E, "F" => VirtualKeys.F, "G" => VirtualKeys.G, "H" => VirtualKeys.H,
+            "I" => VirtualKeys.I, "J" => VirtualKeys.J, "K" => VirtualKeys.K, "L" => VirtualKeys.L,
+            "M" => VirtualKeys.M, "N" => VirtualKeys.N, "O" => VirtualKeys.O, "P" => VirtualKeys.P,
+            "Q" => VirtualKeys.Q, "R" => VirtualKeys.R, "S" => VirtualKeys.S, "T" => VirtualKeys.T,
+            "U" => VirtualKeys.U, "V" => VirtualKeys.V, "W" => VirtualKeys.W, "X" => VirtualKeys.X,
+            "Y" => VirtualKeys.Y, "Z" => VirtualKeys.Z,
+
+            // Numbers
+            "0" => VirtualKeys.D0, "1" => VirtualKeys.D1, "2" => VirtualKeys.D2, "3" => VirtualKeys.D3,
+            "4" => VirtualKeys.D4, "5" => VirtualKeys.D5, "6" => VirtualKeys.D6, "7" => VirtualKeys.D7,
+            "8" => VirtualKeys.D8, "9" => VirtualKeys.D9,
+
+            // Function keys
+            "F1" => VirtualKeys.F1, "F2" => VirtualKeys.F2, "F3" => VirtualKeys.F3, "F4" => VirtualKeys.F4,
+            "F5" => VirtualKeys.F5, "F6" => VirtualKeys.F6, "F7" => VirtualKeys.F7, "F8" => VirtualKeys.F8,
+            "F9" => VirtualKeys.F9, "F10" => VirtualKeys.F10, "F11" => VirtualKeys.F11, "F12" => VirtualKeys.F12,
+
+            // Special keys
+            "SPACE" => VirtualKeys.Space,
+            "TAB" => VirtualKeys.Tab,
+            "ENTER" => VirtualKeys.Enter,
+            "BACKSPACE" => VirtualKeys.Back,
+            "DELETE" => VirtualKeys.Delete,
+            "INSERT" => VirtualKeys.Insert,
+            "HOME" => VirtualKeys.Home,
+            "END" => VirtualKeys.End,
+            "PAGEUP" => VirtualKeys.PageUp,
+            "PAGEDOWN" => VirtualKeys.PageDown,
+
+            // Numpad
+            "NUMPAD0" => VirtualKeys.NumPad0, "NUMPAD1" => VirtualKeys.NumPad1, "NUMPAD2" => VirtualKeys.NumPad2,
+            "NUMPAD3" => VirtualKeys.NumPad3, "NUMPAD4" => VirtualKeys.NumPad4, "NUMPAD5" => VirtualKeys.NumPad5,
+            "NUMPAD6" => VirtualKeys.NumPad6, "NUMPAD7" => VirtualKeys.NumPad7, "NUMPAD8" => VirtualKeys.NumPad8,
+            "NUMPAD9" => VirtualKeys.NumPad9,
+            "NUMPAD+" => VirtualKeys.NumPadAdd,
+            "NUMPAD-" => VirtualKeys.NumPadSubtract,
+            "NUMPAD*" => VirtualKeys.NumPadMultiply,
+            "NUMPAD/" => VirtualKeys.NumPadDivide,
+
+            // OEM keys
+            "+" => VirtualKeys.OemPlus,
+            "-" => VirtualKeys.OemMinus,
+            "," => VirtualKeys.OemComma,
+            "." => VirtualKeys.OemPeriod,
+
+            _ => 0
+        };
     }
 
     public static string FormatBinding(HotkeyBinding binding)

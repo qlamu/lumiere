@@ -22,6 +22,21 @@ public partial class BrightnessPopup : Window
 
     private const int AutoCloseSeconds = 5;
 
+    // Cached brushes to reduce allocations
+    private static readonly SolidColorBrush LabelBrush = new(System.Windows.Media.Color.FromRgb(200, 200, 200));
+    private static readonly SolidColorBrush ErrorBrush = new(System.Windows.Media.Color.FromRgb(255, 100, 100));
+    private static readonly SolidColorBrush TrackBgBrush = new(System.Windows.Media.Color.FromArgb(60, 255, 255, 255));
+    private static readonly SolidColorBrush AccentBrush = new(System.Windows.Media.Color.FromRgb(0, 120, 212));
+
+    static BrightnessPopup()
+    {
+        // Freeze brushes for better performance
+        LabelBrush.Freeze();
+        ErrorBrush.Freeze();
+        TrackBgBrush.Freeze();
+        AccentBrush.Freeze();
+    }
+
     #region Native Methods
 
     [DllImport("user32.dll")]
@@ -83,7 +98,9 @@ public partial class BrightnessPopup : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        _autoCloseTimer.Stop();
         _monitorService.BrightnessChanged -= OnBrightnessChanged;
+        _sliderUpdaters.Clear();
     }
 
     private void OnBrightnessChanged(DisplayMonitor monitor, int brightness)
@@ -190,7 +207,7 @@ public partial class BrightnessPopup : Window
         var label = new TextBlock
         {
             Text = monitor.DisplayName,
-            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 200, 200)),
+            Foreground = LabelBrush,
             FontSize = 12,
             FontFamily = new System.Windows.Media.FontFamily("Segoe UI"),
             Margin = new Thickness(0, 0, 0, 8)
@@ -202,7 +219,7 @@ public partial class BrightnessPopup : Window
             var errorLabel = new TextBlock
             {
                 Text = monitor.ErrorMessage ?? "DDC/CI not supported",
-                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 100, 100)),
+                Foreground = ErrorBrush,
                 FontSize = 11
             };
             panel.Children.Add(errorLabel);
@@ -242,7 +259,7 @@ public partial class BrightnessPopup : Window
         var trackBg = new Border
         {
             Height = 4,
-            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(60, 255, 255, 255)),
+            Background = TrackBgBrush,
             CornerRadius = new CornerRadius(2),
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -251,7 +268,7 @@ public partial class BrightnessPopup : Window
         var trackFill = new Border
         {
             Height = 4,
-            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 120, 212)),
+            Background = AccentBrush,
             CornerRadius = new CornerRadius(2),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = System.Windows.HorizontalAlignment.Left
@@ -262,7 +279,7 @@ public partial class BrightnessPopup : Window
         {
             Width = 16,
             Height = 16,
-            Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 120, 212)),
+            Fill = AccentBrush,
             HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
             Cursor = System.Windows.Input.Cursors.Hand
