@@ -2,16 +2,20 @@
 
 A lightweight Windows app to control monitor brightness via DDC/CI.
 
+![Brightness popup](assets/popup.png)
+![Settings window](assets/settings.png)
+
 ## Features
 
 - **System tray app** - Lives in your taskbar, click to adjust brightness
 - **Multi-monitor support** - Control each monitor independently
-- **Keyboard shortcuts**:
+- **Customizable keyboard shortcuts** (defaults):
   - `Ctrl+Alt+Up` - Increase brightness by 5%
   - `Ctrl+Alt+Down` - Decrease brightness by 5%
   - `Ctrl+Alt+D` - Day mode preset
   - `Ctrl+Alt+N` - Night mode preset
-- **Windows 11 Mica** - Native look with translucent backdrop
+- **Day/Night presets** - Quickly switch between brightness levels
+- **Windows 11 Mica** - Native look with translucent backdrop and system accent color
 
 ## Requirements
 
