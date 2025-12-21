@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using Lumiere.Services;
 using Lumiere.ViewModels;
+using Microsoft.Win32;
 using Forms = System.Windows.Forms;
 using Application = System.Windows.Application;
 
@@ -100,6 +101,15 @@ public partial class App : Application
         settingsItem.Click += (s, e) => _viewModel?.ShowSettingsCommand.Execute(null);
         menu.Items.Add(settingsItem);
 
+        var startupItem = new Forms.ToolStripMenuItem("Launch at startup");
+        startupItem.Checked = IsStartupEnabled();
+        startupItem.Click += (s, e) =>
+        {
+            startupItem.Checked = !startupItem.Checked;
+            SetStartupEnabled(startupItem.Checked);
+        };
+        menu.Items.Add(startupItem);
+
         menu.Items.Add(new Forms.ToolStripSeparator());
 
         var exitItem = new Forms.ToolStripMenuItem("Exit");
@@ -141,4 +151,36 @@ public partial class App : Application
         _mutex?.Dispose();
         base.OnExit(e);
     }
+
+    #region Startup Registry
+
+    private const string StartupRegistryKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+    private const string AppName = "Lumiere";
+
+    private static bool IsStartupEnabled()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryKey, false);
+        return key?.GetValue(AppName) != null;
+    }
+
+    private static void SetStartupEnabled(bool enabled)
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryKey, true);
+        if (key == null) return;
+
+        if (enabled)
+        {
+            var exePath = Environment.ProcessPath;
+            if (exePath != null)
+            {
+                key.SetValue(AppName, $"\"{exePath}\"");
+            }
+        }
+        else
+        {
+            key.DeleteValue(AppName, false);
+        }
+    }
+
+    #endregion
 }
