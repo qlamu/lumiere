@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using Lumiere.Models;
+using Lumiere.Native;
 using Lumiere.Services;
 using Button = System.Windows.Controls.Button;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
@@ -41,6 +42,10 @@ public partial class SettingsWindow : Window
     {
         _settingsService = settingsService;
         _hotkeyService = hotkeyService;
+
+        // Add system accent color as a resource before InitializeComponent
+        Resources["AccentBrush"] = AccentColorHelper.AccentBrush;
+
         InitializeComponent();
 
         SourceInitialized += OnSourceInitialized;

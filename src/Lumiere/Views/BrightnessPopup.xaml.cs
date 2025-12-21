@@ -7,6 +7,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Lumiere.Models;
+using Lumiere.Native;
 using Lumiere.Services;
 using Forms = System.Windows.Forms;
 
@@ -23,18 +24,19 @@ public partial class BrightnessPopup : Window
     private const int AutoCloseSeconds = 5;
 
     // Cached brushes to reduce allocations
-    private static readonly SolidColorBrush LabelBrush = new(System.Windows.Media.Color.FromRgb(200, 200, 200));
-    private static readonly SolidColorBrush ErrorBrush = new(System.Windows.Media.Color.FromRgb(255, 100, 100));
-    private static readonly SolidColorBrush TrackBgBrush = new(System.Windows.Media.Color.FromArgb(60, 255, 255, 255));
-    private static readonly SolidColorBrush AccentBrush = new(System.Windows.Media.Color.FromRgb(0, 120, 212));
+    private static readonly SolidColorBrush LabelBrush;
+    private static readonly SolidColorBrush ErrorBrush;
+    private static readonly SolidColorBrush TrackBgBrush;
 
     static BrightnessPopup()
     {
         // Freeze brushes for better performance
+        LabelBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 200, 200));
+        ErrorBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 100, 100));
+        TrackBgBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(60, 255, 255, 255));
         LabelBrush.Freeze();
         ErrorBrush.Freeze();
         TrackBgBrush.Freeze();
-        AccentBrush.Freeze();
     }
 
     #region Native Methods
@@ -268,7 +270,7 @@ public partial class BrightnessPopup : Window
         var trackFill = new Border
         {
             Height = 4,
-            Background = AccentBrush,
+            Background = AccentColorHelper.AccentBrush,
             CornerRadius = new CornerRadius(2),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = System.Windows.HorizontalAlignment.Left
@@ -279,7 +281,7 @@ public partial class BrightnessPopup : Window
         {
             Width = 16,
             Height = 16,
-            Fill = AccentBrush,
+            Fill = AccentColorHelper.AccentBrush,
             HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
             Cursor = System.Windows.Input.Cursors.Hand

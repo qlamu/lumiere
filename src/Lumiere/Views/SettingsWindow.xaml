@@ -73,7 +73,7 @@
                                                 <Grid>
                                                     <Ellipse x:Name="outerCircle"
                                                              Width="20" Height="20"
-                                                             Fill="#0078D4"/>
+                                                             Fill="{DynamicResource AccentBrush}"/>
                                                     <Ellipse x:Name="innerCircle"
                                                              Width="8" Height="8"
                                                              Fill="White"/>
