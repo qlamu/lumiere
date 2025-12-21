@@ -14,6 +14,7 @@ public partial class MainViewModel : ObservableObject
     private readonly HotkeyService _hotkeyService;
 
     private BrightnessPopup? _popup;
+    private SettingsWindow? _settingsWindow;
     private readonly DispatcherTimer _brightnessThrottle;
     private bool _monitorsInitialized;
 
@@ -46,8 +47,15 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowSettings()
     {
-        var settingsWindow = new SettingsWindow(_settingsService, _hotkeyService);
-        settingsWindow.ShowDialog();
+        if (_settingsWindow != null)
+        {
+            _settingsWindow.Activate();
+            return;
+        }
+
+        _settingsWindow = new SettingsWindow(_settingsService, _hotkeyService);
+        _settingsWindow.Closed += (s, e) => _settingsWindow = null;
+        _settingsWindow.Show();
     }
 
     public void AdjustBrightness(int delta)

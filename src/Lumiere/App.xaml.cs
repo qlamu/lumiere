@@ -1,6 +1,6 @@
-using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows;
+using Lumiere.Native;
 using Lumiere.Services;
 using Lumiere.ViewModels;
 using Microsoft.Win32;
@@ -44,13 +44,16 @@ public partial class App : Application
         // Setup native tray icon
         _trayIcon = new Forms.NotifyIcon
         {
-            Icon = LoadIcon(),
+            Icon = TrayIconHelper.CreateSunIcon(),
             Text = "Lumiere",
             Visible = true,
             ContextMenuStrip = CreateContextMenu()
         };
 
         _trayIcon.Click += OnTrayIconClick;
+
+        // Listen for theme changes to update tray icon
+        SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
 
         // Initialize hotkeys
         _hotkeyService.Initialize(_viewModel, _settingsService);
@@ -74,6 +77,16 @@ public partial class App : Application
         if (e is Forms.MouseEventArgs mouseArgs && mouseArgs.Button == Forms.MouseButtons.Left)
         {
             _viewModel?.ShowPopupCommand.Execute(null);
+        }
+    }
+
+    private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category == UserPreferenceCategory.General && _trayIcon != null)
+        {
+            var oldIcon = _trayIcon.Icon;
+            _trayIcon.Icon = TrayIconHelper.CreateSunIcon();
+            oldIcon?.Dispose();
         }
     }
 
@@ -119,28 +132,9 @@ public partial class App : Application
         return menu;
     }
 
-    private static Icon LoadIcon()
-    {
-        // Load from embedded resource
-        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-        using var stream = assembly.GetManifestResourceStream("Lumiere.Resources.icon.ico");
-        if (stream != null)
-        {
-            return new Icon(stream);
-        }
-
-        // Fallback: create a simple icon programmatically
-        const int size = 32;
-        using var bitmap = new Bitmap(size, size);
-        using var g = Graphics.FromImage(bitmap);
-        g.Clear(Color.Transparent);
-        using var brush = new SolidBrush(Color.White);
-        g.FillEllipse(brush, 8, 8, 16, 16);
-        return Icon.FromHandle(bitmap.GetHicon());
-    }
-
     protected override void OnExit(ExitEventArgs e)
     {
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         _hotkeyService?.Dispose();
         if (_trayIcon != null)
         {
