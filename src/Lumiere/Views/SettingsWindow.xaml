@@ -16,6 +16,39 @@
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
+        <Style x:Key="HotkeyButton" TargetType="Button">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="Foreground" Value="#99FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <TextBlock Text="{TemplateBinding Content}"
+                                       FontSize="{TemplateBinding FontSize}"
+                                       FontFamily="{TemplateBinding FontFamily}"
+                                       Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#25FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#30FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="FluentSlider" TargetType="Slider">
             <Setter Property="Height" Value="24"/>
             <Setter Property="Template">
@@ -181,9 +214,11 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="Brightness up" FontSize="14" FontFamily="Segoe UI" Foreground="#FFFFFF" VerticalAlignment="Center"/>
-                            <Border Grid.Column="1" Background="#15FFFFFF" CornerRadius="4" Padding="10,4" VerticalAlignment="Center">
-                                <TextBlock Text="Ctrl + Alt + Up" FontSize="12" FontFamily="Segoe UI" Foreground="#99FFFFFF"/>
-                            </Border>
+                            <Button x:Name="BrightnessUpButton"
+                                    Grid.Column="1"
+                                    Content="Ctrl + Alt + Up"
+                                    Style="{StaticResource HotkeyButton}"
+                                    Click="HotkeyButton_Click"/>
                         </Grid>
 
                         <Border Height="1" Background="#15FFFFFF" Margin="0,10"/>
@@ -194,9 +229,11 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="Brightness down" FontSize="14" FontFamily="Segoe UI" Foreground="#FFFFFF" VerticalAlignment="Center"/>
-                            <Border Grid.Column="1" Background="#15FFFFFF" CornerRadius="4" Padding="10,4" VerticalAlignment="Center">
-                                <TextBlock Text="Ctrl + Alt + Down" FontSize="12" FontFamily="Segoe UI" Foreground="#99FFFFFF"/>
-                            </Border>
+                            <Button x:Name="BrightnessDownButton"
+                                    Grid.Column="1"
+                                    Content="Ctrl + Alt + Down"
+                                    Style="{StaticResource HotkeyButton}"
+                                    Click="HotkeyButton_Click"/>
                         </Grid>
 
                         <Border Height="1" Background="#15FFFFFF" Margin="0,10"/>
@@ -207,9 +244,11 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="Day preset" FontSize="14" FontFamily="Segoe UI" Foreground="#FFFFFF" VerticalAlignment="Center"/>
-                            <Border Grid.Column="1" Background="#15FFFFFF" CornerRadius="4" Padding="10,4" VerticalAlignment="Center">
-                                <TextBlock Text="Ctrl + Alt + D" FontSize="12" FontFamily="Segoe UI" Foreground="#99FFFFFF"/>
-                            </Border>
+                            <Button x:Name="DayPresetButton"
+                                    Grid.Column="1"
+                                    Content="Ctrl + Alt + D"
+                                    Style="{StaticResource HotkeyButton}"
+                                    Click="HotkeyButton_Click"/>
                         </Grid>
 
                         <Border Height="1" Background="#15FFFFFF" Margin="0,10"/>
@@ -220,9 +259,11 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="Night preset" FontSize="14" FontFamily="Segoe UI" Foreground="#FFFFFF" VerticalAlignment="Center"/>
-                            <Border Grid.Column="1" Background="#15FFFFFF" CornerRadius="4" Padding="10,4" VerticalAlignment="Center">
-                                <TextBlock Text="Ctrl + Alt + N" FontSize="12" FontFamily="Segoe UI" Foreground="#99FFFFFF"/>
-                            </Border>
+                            <Button x:Name="NightPresetButton"
+                                    Grid.Column="1"
+                                    Content="Ctrl + Alt + N"
+                                    Style="{StaticResource HotkeyButton}"
+                                    Click="HotkeyButton_Click"/>
                         </Grid>
                     </StackPanel>
                 </Border>

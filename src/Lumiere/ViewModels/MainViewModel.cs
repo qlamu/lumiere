@@ -46,17 +46,24 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowSettings()
     {
-        var settingsWindow = new SettingsWindow(_settingsService);
+        var settingsWindow = new SettingsWindow(_settingsService, _hotkeyService);
         settingsWindow.ShowDialog();
     }
 
     public void AdjustBrightness(int delta)
     {
-        // Initialize monitors once
+        // Ensure monitors are initialized
         if (!_monitorsInitialized)
         {
             _monitorService.RefreshMonitors();
             _monitorsInitialized = true;
+        }
+
+        // Re-read current brightness from each monitor to ensure accuracy
+        // This prevents alignment issues when monitors have different brightness levels
+        foreach (var monitor in _monitorService.Monitors.Where(m => m.SupportsDdcCi))
+        {
+            _monitorService.GetBrightness(monitor);
         }
 
         // Update target brightness immediately for responsive UI

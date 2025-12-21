@@ -1,5 +1,5 @@
-using System.Windows;
 using System.Windows.Interop;
+using Lumiere.Models;
 using Lumiere.Native;
 using Lumiere.ViewModels;
 
@@ -14,13 +14,78 @@ public class HotkeyService : IDisposable
 
     private HwndSource? _hwndSource;
     private MainViewModel? _viewModel;
+    private SettingsService? _settingsService;
     private bool _disposed;
 
-    public void Initialize(MainViewModel viewModel)
+    private static readonly Dictionary<string, uint> ModifierMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Ctrl"] = HotkeyModifiers.Control,
+        ["Alt"] = HotkeyModifiers.Alt,
+        ["Shift"] = HotkeyModifiers.Shift,
+        ["Win"] = HotkeyModifiers.Win
+    };
+
+    private static readonly Dictionary<string, int> KeyMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Arrow keys
+        ["Up"] = VirtualKeys.Up,
+        ["Down"] = VirtualKeys.Down,
+        ["Left"] = VirtualKeys.Left,
+        ["Right"] = VirtualKeys.Right,
+
+        // Letters
+        ["A"] = VirtualKeys.A, ["B"] = VirtualKeys.B, ["C"] = VirtualKeys.C, ["D"] = VirtualKeys.D,
+        ["E"] = VirtualKeys.E, ["F"] = VirtualKeys.F, ["G"] = VirtualKeys.G, ["H"] = VirtualKeys.H,
+        ["I"] = VirtualKeys.I, ["J"] = VirtualKeys.J, ["K"] = VirtualKeys.K, ["L"] = VirtualKeys.L,
+        ["M"] = VirtualKeys.M, ["N"] = VirtualKeys.N, ["O"] = VirtualKeys.O, ["P"] = VirtualKeys.P,
+        ["Q"] = VirtualKeys.Q, ["R"] = VirtualKeys.R, ["S"] = VirtualKeys.S, ["T"] = VirtualKeys.T,
+        ["U"] = VirtualKeys.U, ["V"] = VirtualKeys.V, ["W"] = VirtualKeys.W, ["X"] = VirtualKeys.X,
+        ["Y"] = VirtualKeys.Y, ["Z"] = VirtualKeys.Z,
+
+        // Numbers
+        ["0"] = VirtualKeys.D0, ["1"] = VirtualKeys.D1, ["2"] = VirtualKeys.D2, ["3"] = VirtualKeys.D3,
+        ["4"] = VirtualKeys.D4, ["5"] = VirtualKeys.D5, ["6"] = VirtualKeys.D6, ["7"] = VirtualKeys.D7,
+        ["8"] = VirtualKeys.D8, ["9"] = VirtualKeys.D9,
+
+        // Function keys
+        ["F1"] = VirtualKeys.F1, ["F2"] = VirtualKeys.F2, ["F3"] = VirtualKeys.F3, ["F4"] = VirtualKeys.F4,
+        ["F5"] = VirtualKeys.F5, ["F6"] = VirtualKeys.F6, ["F7"] = VirtualKeys.F7, ["F8"] = VirtualKeys.F8,
+        ["F9"] = VirtualKeys.F9, ["F10"] = VirtualKeys.F10, ["F11"] = VirtualKeys.F11, ["F12"] = VirtualKeys.F12,
+
+        // Special keys
+        ["Space"] = VirtualKeys.Space,
+        ["Tab"] = VirtualKeys.Tab,
+        ["Enter"] = VirtualKeys.Enter,
+        ["Backspace"] = VirtualKeys.Back,
+        ["Delete"] = VirtualKeys.Delete,
+        ["Insert"] = VirtualKeys.Insert,
+        ["Home"] = VirtualKeys.Home,
+        ["End"] = VirtualKeys.End,
+        ["PageUp"] = VirtualKeys.PageUp,
+        ["PageDown"] = VirtualKeys.PageDown,
+
+        // Numpad
+        ["NumPad0"] = VirtualKeys.NumPad0, ["NumPad1"] = VirtualKeys.NumPad1, ["NumPad2"] = VirtualKeys.NumPad2,
+        ["NumPad3"] = VirtualKeys.NumPad3, ["NumPad4"] = VirtualKeys.NumPad4, ["NumPad5"] = VirtualKeys.NumPad5,
+        ["NumPad6"] = VirtualKeys.NumPad6, ["NumPad7"] = VirtualKeys.NumPad7, ["NumPad8"] = VirtualKeys.NumPad8,
+        ["NumPad9"] = VirtualKeys.NumPad9,
+        ["NumPad+"] = VirtualKeys.NumPadAdd,
+        ["NumPad-"] = VirtualKeys.NumPadSubtract,
+        ["NumPad*"] = VirtualKeys.NumPadMultiply,
+        ["NumPad/"] = VirtualKeys.NumPadDivide,
+
+        // OEM keys
+        ["+"] = VirtualKeys.OemPlus,
+        ["-"] = VirtualKeys.OemMinus,
+        [","] = VirtualKeys.OemComma,
+        ["."] = VirtualKeys.OemPeriod
+    };
+
+    public void Initialize(MainViewModel viewModel, SettingsService settingsService)
     {
         _viewModel = viewModel;
+        _settingsService = settingsService;
 
-        // Create a hidden window for receiving hotkey messages
         var parameters = new HwndSourceParameters("LumiereHotkeyWindow")
         {
             Width = 0,
@@ -33,30 +98,80 @@ public class HotkeyService : IDisposable
         _hwndSource = new HwndSource(parameters);
         _hwndSource.AddHook(WndProc);
 
-        RegisterDefaultHotkeys();
+        RegisterHotkeys();
     }
 
-    private void RegisterDefaultHotkeys()
+    public void ReregisterHotkeys()
     {
-        if (_hwndSource == null) return;
+        UnregisterHotkeys();
+        RegisterHotkeys();
+    }
+
+    private void RegisterHotkeys()
+    {
+        if (_hwndSource == null || _settingsService == null) return;
 
         var handle = _hwndSource.Handle;
+        var hotkeys = _settingsService.Settings.Hotkeys;
 
-        // Ctrl+Alt+Up - Brightness up
-        User32Interop.RegisterHotKey(handle, HOTKEY_BRIGHTNESS_UP,
-            HotkeyModifiers.Control | HotkeyModifiers.Alt, (uint)VirtualKeys.Up);
+        RegisterHotkey(handle, HOTKEY_BRIGHTNESS_UP, hotkeys.BrightnessUp);
+        RegisterHotkey(handle, HOTKEY_BRIGHTNESS_DOWN, hotkeys.BrightnessDown);
+        RegisterHotkey(handle, HOTKEY_DAY_PRESET, hotkeys.DayPreset);
+        RegisterHotkey(handle, HOTKEY_NIGHT_PRESET, hotkeys.NightPreset);
+    }
 
-        // Ctrl+Alt+Down - Brightness down
-        User32Interop.RegisterHotKey(handle, HOTKEY_BRIGHTNESS_DOWN,
-            HotkeyModifiers.Control | HotkeyModifiers.Alt, (uint)VirtualKeys.Down);
+    private void RegisterHotkey(IntPtr handle, int id, HotkeyBinding binding)
+    {
+        if (!binding.IsEnabled || string.IsNullOrEmpty(binding.Key)) return;
 
-        // Ctrl+Alt+D - Day preset
-        User32Interop.RegisterHotKey(handle, HOTKEY_DAY_PRESET,
-            HotkeyModifiers.Control | HotkeyModifiers.Alt, (uint)VirtualKeys.D);
+        var modifiers = ParseModifiers(binding.Modifiers);
+        var key = ParseKey(binding.Key);
 
-        // Ctrl+Alt+N - Night preset
-        User32Interop.RegisterHotKey(handle, HOTKEY_NIGHT_PRESET,
-            HotkeyModifiers.Control | HotkeyModifiers.Alt, (uint)VirtualKeys.N);
+        if (key == 0) return;
+
+        User32Interop.RegisterHotKey(handle, id, modifiers, (uint)key);
+    }
+
+    private static uint ParseModifiers(string modifierString)
+    {
+        if (string.IsNullOrEmpty(modifierString)) return 0;
+
+        uint result = 0;
+        var parts = modifierString.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        foreach (var part in parts)
+        {
+            if (ModifierMap.TryGetValue(part, out var modifier))
+            {
+                result |= modifier;
+            }
+        }
+
+        return result;
+    }
+
+    private static int ParseKey(string keyString)
+    {
+        if (string.IsNullOrEmpty(keyString)) return 0;
+
+        return KeyMap.TryGetValue(keyString.Trim(), out var key) ? key : 0;
+    }
+
+    public static string FormatBinding(HotkeyBinding binding)
+    {
+        if (!binding.IsEnabled || string.IsNullOrEmpty(binding.Key))
+            return "None";
+
+        var parts = new List<string>();
+
+        if (!string.IsNullOrEmpty(binding.Modifiers))
+        {
+            parts.AddRange(binding.Modifiers.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
+
+        parts.Add(binding.Key);
+
+        return string.Join(" + ", parts);
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

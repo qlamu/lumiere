@@ -52,7 +52,7 @@ public partial class App : Application
         _trayIcon.Click += OnTrayIconClick;
 
         // Initialize hotkeys
-        _hotkeyService.Initialize(_viewModel);
+        _hotkeyService.Initialize(_viewModel, _settingsService);
 
         // Reduce memory footprint after startup
         GC.Collect();
