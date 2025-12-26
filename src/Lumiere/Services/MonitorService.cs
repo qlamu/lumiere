@@ -14,6 +14,11 @@ public class MonitorService : IDisposable
     public IReadOnlyList<DisplayMonitor> Monitors => _monitors;
     public bool IsInitialized => _isInitialized;
 
+    public void Invalidate()
+    {
+        _isInitialized = false;
+    }
+
     public event Action<DisplayMonitor, int>? BrightnessChanged;
 
     public void NotifyBrightnessChanged(DisplayMonitor monitor, int brightness)

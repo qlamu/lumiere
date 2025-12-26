@@ -335,23 +335,22 @@ public partial class BrightnessPopup : Window
         container.Loaded += (s, e) => UpdateVisuals();
 
         int pendingBrightness = (int)value;
-        bool isApplying = false;
+        int isApplying = 0; // 0 = false, 1 = true (for Interlocked)
 
         void SetBrightnessAsync(int brightness)
         {
-            pendingBrightness = brightness;
-            if (isApplying) return;
+            System.Threading.Interlocked.Exchange(ref pendingBrightness, brightness);
+            if (System.Threading.Interlocked.CompareExchange(ref isApplying, 1, 0) != 0) return;
 
-            isApplying = true;
             System.Threading.Tasks.Task.Run(() =>
             {
                 while (true)
                 {
-                    int toApply = pendingBrightness;
+                    int toApply = System.Threading.Interlocked.CompareExchange(ref pendingBrightness, 0, 0);
                     _monitorService.SetBrightness(monitor, toApply, notify: false);
-                    if (pendingBrightness == toApply) break;
+                    if (System.Threading.Interlocked.CompareExchange(ref pendingBrightness, 0, 0) == toApply) break;
                 }
-                isApplying = false;
+                System.Threading.Interlocked.Exchange(ref isApplying, 0);
             });
         }
 
@@ -376,6 +375,11 @@ public partial class BrightnessPopup : Window
                 container.ReleaseMouseCapture();
                 SetBrightnessAsync((int)value);
                 _settingsService.SaveLastBrightness(monitor.DeviceName, (int)value);
+                // Reset thumb size after drag
+                thumb.Width = 16;
+                thumb.Height = 16;
+                thumbInner.Width = 6;
+                thumbInner.Height = 6;
             }
         };
 
@@ -388,6 +392,38 @@ public partial class BrightnessPopup : Window
             value = Math.Round(min + ratio * (max - min));
             SetBrightnessAsync((int)value);
             UpdateVisuals(ratio);
+        };
+
+        // Mouse wheel support
+        container.MouseWheel += (s, e) =>
+        {
+            int delta = e.Delta > 0 ? 5 : -5;
+            value = Math.Clamp(Math.Round(value + delta), min, max);
+            var ratio = (value - min) / (max - min);
+            SetBrightnessAsync((int)value);
+            _settingsService.SaveLastBrightness(monitor.DeviceName, (int)value);
+            UpdateVisuals(ratio);
+            e.Handled = true;
+        };
+
+        // Hover feedback on thumb
+        thumb.MouseEnter += (s, e) =>
+        {
+            thumb.Width = 18;
+            thumb.Height = 18;
+            thumbInner.Width = 7;
+            thumbInner.Height = 7;
+        };
+
+        thumb.MouseLeave += (s, e) =>
+        {
+            if (!isDragging)
+            {
+                thumb.Width = 16;
+                thumb.Height = 16;
+                thumbInner.Width = 6;
+                thumbInner.Height = 6;
+            }
         };
 
         // Register updater for external brightness changes

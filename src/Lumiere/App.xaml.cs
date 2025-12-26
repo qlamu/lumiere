@@ -59,7 +59,7 @@ public partial class App : Application
         SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
 
         // Initialize hotkeys
-        _hotkeyService.Initialize(_viewModel, _settingsService);
+        _hotkeyService.Initialize(_viewModel, _settingsService, _monitorService);
 
         // Reduce memory footprint after startup
         GC.Collect();

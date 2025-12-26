@@ -137,4 +137,5 @@ public static class VirtualKeys
 public static class WindowMessages
 {
     public const int WM_HOTKEY = 0x0312;
+    public const int WM_DISPLAYCHANGE = 0x007E;
 }

@@ -15,12 +15,14 @@ public class HotkeyService : IDisposable
     private HwndSource? _hwndSource;
     private MainViewModel? _viewModel;
     private SettingsService? _settingsService;
+    private MonitorService? _monitorService;
     private bool _disposed;
 
-    public void Initialize(MainViewModel viewModel, SettingsService settingsService)
+    public void Initialize(MainViewModel viewModel, SettingsService settingsService, MonitorService monitorService)
     {
         _viewModel = viewModel;
         _settingsService = settingsService;
+        _monitorService = monitorService;
 
         var parameters = new HwndSourceParameters("LumiereHotkeyWindow")
         {
@@ -195,6 +197,11 @@ public class HotkeyService : IDisposable
                     handled = true;
                     break;
             }
+        }
+        else if (msg == WindowMessages.WM_DISPLAYCHANGE)
+        {
+            // Monitor was plugged/unplugged or display settings changed
+            _monitorService?.Invalidate();
         }
 
         return IntPtr.Zero;
