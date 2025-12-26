@@ -9,8 +9,10 @@ public class MonitorService : IDisposable
     private readonly List<DisplayMonitor> _monitors = new();
     private readonly List<PHYSICAL_MONITOR> _physicalMonitors = new();
     private bool _disposed;
+    private bool _isInitialized;
 
     public IReadOnlyList<DisplayMonitor> Monitors => _monitors;
+    public bool IsInitialized => _isInitialized;
 
     public event Action<DisplayMonitor, int>? BrightnessChanged;
 
@@ -19,8 +21,11 @@ public class MonitorService : IDisposable
         BrightnessChanged?.Invoke(monitor, brightness);
     }
 
-    public void RefreshMonitors()
+    public void RefreshMonitors(bool force = false)
     {
+        if (_isInitialized && !force)
+            return;
+
         CleanupMonitors();
         _monitors.Clear();
         _physicalMonitors.Clear();
@@ -108,6 +113,8 @@ public class MonitorService : IDisposable
                 index++;
             }
         }
+
+        _isInitialized = true;
     }
 
     public bool SetBrightness(DisplayMonitor monitor, int brightness, bool notify = true)

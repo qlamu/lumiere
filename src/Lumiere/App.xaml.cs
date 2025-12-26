@@ -38,6 +38,9 @@ public partial class App : Application
         _monitorService = new MonitorService();
         _hotkeyService = new HotkeyService();
 
+        // Pre-initialize monitors so first popup works immediately
+        _monitorService.RefreshMonitors();
+
         // Initialize view model
         _viewModel = new MainViewModel(_monitorService, _settingsService, _hotkeyService);
 

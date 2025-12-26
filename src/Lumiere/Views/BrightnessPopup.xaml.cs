@@ -191,7 +191,7 @@ public partial class BrightnessPopup : Window
 
     private void CreateControls()
     {
-        _monitorService.RefreshMonitors();
+        _monitorService.RefreshMonitors(force: true);
 
         var monitors = _monitorService.Monitors.ToList();
         for (int i = 0; i < monitors.Count; i++)
@@ -256,7 +256,7 @@ public partial class BrightnessPopup : Window
 
     private Grid CreateModernSlider(DisplayMonitor monitor)
     {
-        var container = new Grid { Height = 20, Margin = new Thickness(0, 2, 0, 0) };
+        var container = new Grid { Height = 24, Margin = new Thickness(0, 0, 0, 0), Cursor = System.Windows.Input.Cursors.Hand, Background = System.Windows.Media.Brushes.Transparent };
 
         var trackBg = new Border
         {
@@ -303,16 +303,19 @@ public partial class BrightnessPopup : Window
         double min = monitor.MinBrightness;
         double max = monitor.MaxBrightness;
         double value = monitor.CurrentBrightness;
+        double visualRatio = (value - min) / (max - min);
         bool isDragging = false;
 
-        void UpdateVisuals()
+        void UpdateVisuals(double? ratio = null)
         {
             var width = container.ActualWidth;
             if (width <= 0) return;
 
-            var ratio = (value - min) / (max - min);
-            var fillWidth = ratio * width;
-            var thumbX = ratio * (width - 16);
+            if (ratio.HasValue)
+                visualRatio = ratio.Value;
+
+            var fillWidth = visualRatio * width;
+            var thumbX = visualRatio * (width - 16);
 
             trackFill.Width = Math.Max(0, fillWidth);
             thumb.Margin = new Thickness(thumbX, 0, 0, 0);
@@ -331,50 +334,68 @@ public partial class BrightnessPopup : Window
         container.SizeChanged += (s, e) => UpdateVisuals();
         container.Loaded += (s, e) => UpdateVisuals();
 
-        thumb.MouseLeftButtonDown += (s, e) =>
+        int pendingBrightness = (int)value;
+        bool isApplying = false;
+
+        void SetBrightnessAsync(int brightness)
+        {
+            pendingBrightness = brightness;
+            if (isApplying) return;
+
+            isApplying = true;
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                while (true)
+                {
+                    int toApply = pendingBrightness;
+                    _monitorService.SetBrightness(monitor, toApply, notify: false);
+                    if (pendingBrightness == toApply) break;
+                }
+                isApplying = false;
+            });
+        }
+
+        container.MouseLeftButtonDown += (s, e) =>
         {
             isDragging = true;
-            thumb.CaptureMouse();
+            container.CaptureMouse();
+            var pos = e.GetPosition(container);
+            var width = container.ActualWidth;
+            var ratio = Math.Clamp(pos.X / width, 0, 1);
+            value = Math.Round(min + ratio * (max - min));
+            SetBrightnessAsync((int)value);
+            UpdateVisuals(ratio);
             e.Handled = true;
         };
 
-        thumb.MouseLeftButtonUp += (s, e) =>
+        container.MouseLeftButtonUp += (s, e) =>
         {
             if (isDragging)
             {
                 isDragging = false;
-                thumb.ReleaseMouseCapture();
+                container.ReleaseMouseCapture();
+                SetBrightnessAsync((int)value);
                 _settingsService.SaveLastBrightness(monitor.DeviceName, (int)value);
             }
         };
 
-        thumb.MouseMove += (s, e) =>
+        container.MouseMove += (s, e) =>
         {
             if (!isDragging) return;
             var pos = e.GetPosition(container);
             var width = container.ActualWidth;
             var ratio = Math.Clamp(pos.X / width, 0, 1);
             value = Math.Round(min + ratio * (max - min));
-            _monitorService.SetBrightness(monitor, (int)value);
-            UpdateVisuals();
-        };
-
-        container.MouseLeftButtonDown += (s, e) =>
-        {
-            var pos = e.GetPosition(container);
-            var width = container.ActualWidth;
-            var ratio = Math.Clamp(pos.X / width, 0, 1);
-            value = Math.Round(min + ratio * (max - min));
-            _monitorService.SetBrightness(monitor, (int)value);
-            _settingsService.SaveLastBrightness(monitor.DeviceName, (int)value);
-            UpdateVisuals();
+            SetBrightnessAsync((int)value);
+            UpdateVisuals(ratio);
         };
 
         // Register updater for external brightness changes
         _sliderUpdaters[monitor.DeviceName] = newBrightness =>
         {
             value = newBrightness;
-            UpdateVisuals();
+            var newRatio = (value - min) / (max - min);
+            UpdateVisuals(newRatio);
         };
 
         return container;

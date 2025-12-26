@@ -16,7 +16,6 @@ public partial class MainViewModel : ObservableObject
     private BrightnessPopup? _popup;
     private SettingsWindow? _settingsWindow;
     private readonly DispatcherTimer _brightnessThrottle;
-    private bool _monitorsInitialized;
 
     public MainViewModel(MonitorService monitorService, SettingsService settingsService, HotkeyService hotkeyService)
     {
@@ -60,12 +59,8 @@ public partial class MainViewModel : ObservableObject
 
     public void AdjustBrightness(int delta)
     {
-        // Ensure monitors are initialized
-        if (!_monitorsInitialized)
-        {
-            _monitorService.RefreshMonitors();
-            _monitorsInitialized = true;
-        }
+        // Ensure monitors are initialized (won't re-refresh if already done)
+        _monitorService.RefreshMonitors();
 
         // Re-read current brightness from each monitor to ensure accuracy
         // This prevents alignment issues when monitors have different brightness levels
@@ -106,7 +101,7 @@ public partial class MainViewModel : ObservableObject
         var preset = _settingsService.GetPreset(presetName);
         if (preset == null) return;
 
-        _monitorService.RefreshMonitors();
+        _monitorService.RefreshMonitors(force: true);
         foreach (var monitor in _monitorService.Monitors.Where(m => m.SupportsDdcCi))
         {
             int brightness;
