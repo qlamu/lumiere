@@ -20,6 +20,7 @@ public partial class BrightnessPopup : Window
     private readonly DispatcherTimer _autoCloseTimer;
     private readonly Dictionary<string, Action<int>> _sliderUpdaters = new();
     private bool _isClosing;
+    private bool _hasBeenShown;
 
     private const int AutoCloseSeconds = 5;
 
@@ -83,26 +84,95 @@ public partial class BrightnessPopup : Window
         _settingsService = settingsService;
 
         InitializeComponent();
-        CreateControls();
 
         // Auto-close timer
         _autoCloseTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(AutoCloseSeconds) };
-        _autoCloseTimer.Tick += (s, e) => AnimateClose();
+        _autoCloseTimer.Tick += (s, e) => HidePopup();
 
         SourceInitialized += OnSourceInitialized;
-        Loaded += OnLoaded;
-        Closed += OnClosed;
         PreviewMouseMove += (s, e) => ResetTimer();
         PreviewMouseDown += (s, e) => ResetTimer();
 
         _monitorService.BrightnessChanged += OnBrightnessChanged;
     }
 
-    private void OnClosed(object? sender, EventArgs e)
+    /// <summary>
+    /// Shows the popup, refreshing monitor data. Reuses the window instance.
+    /// </summary>
+    public void ShowPopup()
     {
-        _autoCloseTimer.Stop();
-        _monitorService.BrightnessChanged -= OnBrightnessChanged;
+        // Refresh monitors and rebuild controls
         _sliderUpdaters.Clear();
+        MonitorPanel.Children.Clear();
+        _monitorService.RefreshMonitors(force: true);
+
+        var monitors = _monitorService.Monitors.ToList();
+        for (int i = 0; i < monitors.Count; i++)
+        {
+            bool isLast = i == monitors.Count - 1;
+            var panel = CreateMonitorControl(monitors[i], isLast);
+            MonitorPanel.Children.Add(panel);
+        }
+
+        // Reset state
+        _isClosing = false;
+
+        if (!_hasBeenShown)
+        {
+            // First show: position off-screen, show, then reposition in Loaded
+            Left = -10000;
+            Top = -10000;
+            Show();
+
+            // Wait for layout, then position and animate
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+            {
+                PositionNearTray();
+                var hwnd = new WindowInteropHelper(this).Handle;
+                SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                Activate();
+                Focus();
+                AnimateOpen();
+                _autoCloseTimer.Start();
+            });
+            _hasBeenShown = true;
+        }
+        else
+        {
+            // Subsequent shows: position before showing (ActualSize is valid)
+            PositionNearTray();
+            Show();
+
+            var hwnd = new WindowInteropHelper(this).Handle;
+            SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+            Activate();
+            Focus();
+
+            AnimateOpen();
+            _autoCloseTimer.Start();
+        }
+    }
+
+    /// <summary>
+    /// Hides the popup with animation. Window stays in memory for fast reuse.
+    /// </summary>
+    public void HidePopup()
+    {
+        if (_isClosing) return;
+        _isClosing = true;
+        _autoCloseTimer.Stop();
+
+        var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+        var duration = TimeSpan.FromMilliseconds(150);
+
+        var slideDown = new DoubleAnimation(Top, Top + 8, duration) { EasingFunction = ease };
+        slideDown.Completed += (s, e) =>
+        {
+            Hide();
+            BeginAnimation(TopProperty, null); // Clear animation
+        };
+
+        BeginAnimation(TopProperty, slideDown);
     }
 
     private void OnBrightnessChanged(DisplayMonitor monitor, int brightness)
@@ -143,21 +213,6 @@ public partial class BrightnessPopup : Window
         DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref micaValue, sizeof(int));
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
-    {
-        PositionNearTray();
-        AnimateOpen();
-        _autoCloseTimer.Start();
-
-        // Force window to be topmost (above taskbar)
-        var hwnd = new WindowInteropHelper(this).Handle;
-        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-
-        // Activate window so Deactivated event fires properly
-        Activate();
-        Focus();
-    }
-
     private void ResetTimer()
     {
         _autoCloseTimer.Stop();
@@ -172,34 +227,6 @@ public partial class BrightnessPopup : Window
         // Animate window position (whole window slides up)
         var slideUp = new DoubleAnimation(Top + 12, Top, duration) { EasingFunction = ease };
         BeginAnimation(TopProperty, slideUp);
-    }
-
-    private void AnimateClose()
-    {
-        if (_isClosing) return;
-        _isClosing = true;
-        _autoCloseTimer.Stop();
-
-        var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
-        var duration = TimeSpan.FromMilliseconds(150);
-
-        var slideDown = new DoubleAnimation(Top, Top + 8, duration) { EasingFunction = ease };
-        slideDown.Completed += (s, e) => Close();
-
-        BeginAnimation(TopProperty, slideDown);
-    }
-
-    private void CreateControls()
-    {
-        _monitorService.RefreshMonitors(force: true);
-
-        var monitors = _monitorService.Monitors.ToList();
-        for (int i = 0; i < monitors.Count; i++)
-        {
-            bool isLast = i == monitors.Count - 1;
-            var panel = CreateMonitorControl(monitors[i], isLast);
-            MonitorPanel.Children.Add(panel);
-        }
     }
 
     private StackPanel CreateMonitorControl(DisplayMonitor monitor, bool isLast)
@@ -439,15 +466,20 @@ public partial class BrightnessPopup : Window
 
     private void PositionNearTray()
     {
-        var source = PresentationSource.FromVisual(this);
-        double dpi = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
-
         var screen = Forms.Screen.PrimaryScreen ?? Forms.Screen.AllScreens[0];
         var workArea = screen.WorkingArea;
         var bounds = screen.Bounds;
 
-        double w = ActualWidth * dpi;
-        double h = ActualHeight * dpi;
+        // Use DesiredSize as fallback before window is shown (ActualSize is 0)
+        double w = ActualWidth > 0 ? ActualWidth : DesiredSize.Width;
+        double h = ActualHeight > 0 ? ActualHeight : DesiredSize.Height;
+
+        // Get DPI - use screen DPI before window is shown
+        var source = PresentationSource.FromVisual(this);
+        double dpi = source?.CompositionTarget?.TransformToDevice.M11 ?? (screen.Bounds.Width / SystemParameters.PrimaryScreenWidth);
+
+        w *= dpi;
+        h *= dpi;
         double marginX = 12 * dpi;
 
         // Detect auto-hide taskbar (work area equals screen bounds)
@@ -463,5 +495,5 @@ public partial class BrightnessPopup : Window
         Top = top / dpi;
     }
 
-    private void Window_Deactivated(object sender, EventArgs e) => AnimateClose();
+    private void Window_Deactivated(object sender, EventArgs e) => HidePopup();
 }

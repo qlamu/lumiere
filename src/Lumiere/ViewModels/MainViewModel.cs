@@ -31,16 +31,18 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowPopup()
     {
-        if (_popup != null)
+        // Toggle: if visible, hide it
+        if (_popup != null && _popup.IsVisible)
         {
-            _popup.Close();
-            _popup = null;
+            _popup.HidePopup();
             return;
         }
 
-        _popup = new BrightnessPopup(_monitorService, _settingsService);
-        _popup.Closed += (s, e) => _popup = null;
-        _popup.Show();
+        // Create popup once (lazy initialization)
+        _popup ??= new BrightnessPopup(_monitorService, _settingsService);
+
+        // Show with fresh monitor data
+        _popup.ShowPopup();
     }
 
     [RelayCommand]
