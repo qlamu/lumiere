@@ -24,20 +24,30 @@ public partial class BrightnessPopup : Window
 
     private const int AutoCloseSeconds = 5;
 
-    // Cached brushes to reduce allocations
-    private static readonly SolidColorBrush LabelBrush;
+    // Theme-aware brushes
+    private SolidColorBrush _labelBrush = null!;
+    private SolidColorBrush _valueBrush = null!;
+    private SolidColorBrush _trackBgBrush = null!;
     private static readonly SolidColorBrush ErrorBrush;
-    private static readonly SolidColorBrush TrackBgBrush;
 
     static BrightnessPopup()
     {
-        // Freeze brushes for better performance
-        LabelBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 200, 200));
         ErrorBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 100, 100));
-        TrackBgBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(60, 255, 255, 255));
-        LabelBrush.Freeze();
         ErrorBrush.Freeze();
-        TrackBgBrush.Freeze();
+    }
+
+    private void UpdateBrushesForTheme()
+    {
+        bool isLight = TrayIconHelper.IsLightTaskbar();
+        _labelBrush = new SolidColorBrush(isLight
+            ? System.Windows.Media.Color.FromRgb(60, 60, 60)
+            : System.Windows.Media.Color.FromRgb(200, 200, 200));
+        _valueBrush = new SolidColorBrush(isLight
+            ? System.Windows.Media.Color.FromRgb(30, 30, 30)
+            : System.Windows.Media.Colors.White);
+        _trackBgBrush = new SolidColorBrush(isLight
+            ? System.Windows.Media.Color.FromArgb(80, 0, 0, 0)
+            : System.Windows.Media.Color.FromArgb(60, 255, 255, 255));
     }
 
     #region Native Methods
@@ -101,7 +111,8 @@ public partial class BrightnessPopup : Window
     /// </summary>
     public void ShowPopup()
     {
-        // Refresh monitors and rebuild controls
+        // Update theme and refresh monitors
+        UpdateBrushesForTheme();
         _sliderUpdaters.Clear();
         MonitorPanel.Children.Clear();
         _monitorService.RefreshMonitors(force: true);
@@ -140,6 +151,7 @@ public partial class BrightnessPopup : Window
         else
         {
             // Subsequent shows: position before showing (ActualSize is valid)
+            UpdateTheme();
             PositionNearTray();
             Show();
 
@@ -196,9 +208,8 @@ public partial class BrightnessPopup : Window
     {
         var hwnd = new WindowInteropHelper(this).Handle;
 
-        // Enable dark mode
-        int darkMode = 1;
-        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
+        // Detect system theme and apply
+        UpdateTheme();
 
         // Enable rounded corners
         int cornerPreference = DWMWCP_ROUND;
@@ -211,6 +222,15 @@ public partial class BrightnessPopup : Window
         // Enable Mica backdrop
         int micaValue = DWMSBT_TABBEDWINDOW;
         DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref micaValue, sizeof(int));
+    }
+
+    private void UpdateTheme()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+
+        int darkMode = TrayIconHelper.IsLightTaskbar() ? 0 : 1;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
     }
 
     private void ResetTimer()
@@ -236,7 +256,7 @@ public partial class BrightnessPopup : Window
         var label = new TextBlock
         {
             Text = monitor.DisplayName,
-            Foreground = LabelBrush,
+            Foreground = _labelBrush,
             FontSize = 12,
             FontFamily = new System.Windows.Media.FontFamily("Segoe UI"),
             Margin = new Thickness(0, 0, 0, 8)
@@ -266,7 +286,7 @@ public partial class BrightnessPopup : Window
         var valueLabel = new TextBlock
         {
             Text = $"{monitor.CurrentBrightness}%",
-            Foreground = System.Windows.Media.Brushes.White,
+            Foreground = _valueBrush,
             FontSize = 12,
             FontFamily = new System.Windows.Media.FontFamily("Segoe UI"),
             Width = 36,
@@ -288,7 +308,7 @@ public partial class BrightnessPopup : Window
         var trackBg = new Border
         {
             Height = 4,
-            Background = TrackBgBrush,
+            Background = _trackBgBrush,
             CornerRadius = new CornerRadius(2),
             VerticalAlignment = VerticalAlignment.Center
         };
