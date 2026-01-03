@@ -76,7 +76,7 @@
                                                              Fill="{DynamicResource AccentBrush}"/>
                                                     <Ellipse x:Name="innerCircle"
                                                              Width="8" Height="8"
-                                                             Fill="White"/>
+                                                             Fill="{DynamicResource ThumbInnerBrush}"/>
                                                 </Grid>
                                                 <ControlTemplate.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">

@@ -28,6 +28,7 @@ public partial class BrightnessPopup : Window
     private SolidColorBrush _labelBrush = null!;
     private SolidColorBrush _valueBrush = null!;
     private SolidColorBrush _trackBgBrush = null!;
+    private SolidColorBrush _thumbInnerBrush = null!;
     private static readonly SolidColorBrush ErrorBrush;
 
     static BrightnessPopup()
@@ -48,6 +49,9 @@ public partial class BrightnessPopup : Window
         _trackBgBrush = new SolidColorBrush(isLight
             ? System.Windows.Media.Color.FromArgb(80, 0, 0, 0)
             : System.Windows.Media.Color.FromArgb(60, 255, 255, 255));
+        _thumbInnerBrush = new SolidColorBrush(isLight
+            ? System.Windows.Media.Colors.White
+            : System.Windows.Media.Color.FromRgb(30, 30, 30));
     }
 
     #region Native Methods
@@ -339,7 +343,7 @@ public partial class BrightnessPopup : Window
         {
             Width = 6,
             Height = 6,
-            Fill = System.Windows.Media.Brushes.White,
+            Fill = _thumbInnerBrush,
             HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
             IsHitTestVisible = false

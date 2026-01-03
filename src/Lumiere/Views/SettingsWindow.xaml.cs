@@ -46,6 +46,12 @@ public partial class SettingsWindow : Window
         // Add system accent color as a resource before InitializeComponent
         Resources["AccentBrush"] = AccentColorHelper.AccentBrush;
 
+        // Add theme-aware thumb inner brush (dark for dark theme, light for light theme)
+        bool isLight = TrayIconHelper.IsLightTaskbar();
+        Resources["ThumbInnerBrush"] = new System.Windows.Media.SolidColorBrush(isLight
+            ? System.Windows.Media.Colors.White
+            : System.Windows.Media.Color.FromRgb(30, 30, 30));
+
         InitializeComponent();
 
         SourceInitialized += OnSourceInitialized;
@@ -63,8 +69,8 @@ public partial class SettingsWindow : Window
     {
         var hwnd = new WindowInteropHelper(this).Handle;
 
-        // Enable dark mode
-        int darkMode = 1;
+        // Use system theme
+        int darkMode = TrayIconHelper.IsLightTaskbar() ? 0 : 1;
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
 
         // Enable rounded corners
